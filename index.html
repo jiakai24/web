@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <title>第一關接住水資源</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: sans-serif;
+      background-image: url("https://images.pexels.com/photos/19670/pexels-photo.jpg?auto=compress&cs=tinysrgb&w=600");
+      background-size: cover;
+      background-position: center;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    #scoreboard {
+      text-align: center;
+      color: white;
+      font-size: 24px;
+      margin: 10px;
+    }
+    #startButton, #nextLevelButton {
+      display: block;
+      margin: 20px auto;
+      padding: 10px 20px;
+      font-size: 18px;
+      cursor: pointer;
+      background-color: #4a90e2;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+    #nextLevelButton {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="text-align:center; color:white;">[第一關 接住水資源]</h1>
+  <div id="scoreboard">分數: 0｜剩餘時間: 30 秒</div>
+  <button id="startButton">開始遊戲</button>
+  <button id="nextLevelButton" onclick="location.href='GAME2.html'">下一關</button>
+  <canvas id="gameCanvas" width="500" height="600"></canvas>
+
+  <!-- 音樂 -->
+  <audio id="backgroundMusic" src="music1.mp3" preload="auto" loop></audio>
+  
+  <!-- 滴水音效 -->
+  <audio id="dropSound" src="https://actions.google.com/sounds/v1/water/drip_water_drop.ogg" preload="auto"></audio>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const scoreboard = document.getElementById("scoreboard");
+    const startButton = document.getElementById("startButton");
+    const nextLevelButton = document.getElementById("nextLevelButton");
+    const dropSound = document.getElementById("dropSound");
+    const backgroundMusic = document.getElementById("backgroundMusic"); // 音樂控制
+
+    let bucket = { x: 210, y: 530, width: 100, height: 50 };
+    let waterDrops = [];
+    let particles = [];
+    let score = 0;
+    let timeLeft = 30;
+    let gameRunning = false;
+    let dropInterval;
+    let timerInterval;
+    const WIN_SCORE = 20;
+
+    canvas.addEventListener("mousemove", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      let mouseX = e.clientX - rect.left;
+      mouseX = Math.max(bucket.width / 2, Math.min(canvas.width - bucket.width / 2, mouseX));
+      bucket.x = mouseX - bucket.width / 2;
+    });
+
+    function startGame() {
+      // 播放背景音樂
+      backgroundMusic.play();
+
+      score = 0;
+      timeLeft = 30;
+      waterDrops = [];
+      particles = [];
+      gameRunning = true;
+      startButton.disabled = true;
+      nextLevelButton.style.display = "none";
+      scoreboard.textContent = `分數: ${score}｜剩餘時間: ${timeLeft} 秒`;
+
+      dropInterval = setInterval(spawnDrop, 800);
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        scoreboard.textContent = `分數: ${score}｜剩餘時間: ${timeLeft} 秒`;
+        if (timeLeft <= 0) {
+          endGame(false);
+        }
+      }, 1000);
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function spawnDrop() {
+      const x = Math.random() * (canvas.width - 30);
+      waterDrops.push({ x, y: 0, width: 20, height: 30, speed: 3 });
+    }
+
+    function drawWaterDrop(drop) {
+      ctx.fillStyle = "#00ccff";
+      ctx.beginPath();
+      ctx.moveTo(drop.x, drop.y);
+      ctx.bezierCurveTo(
+        drop.x - drop.width / 2,
+        drop.y + drop.height / 3,
+        drop.x + drop.width / 2,
+        drop.y + drop.height / 3,
+        drop.x,
+        drop.y + drop.height
+      );
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawBucket() {
+      ctx.fillStyle = "#4a90e2";
+      ctx.beginPath();
+      ctx.ellipse(
+        bucket.x + bucket.width / 2,
+        bucket.y + bucket.height / 2,
+        bucket.width / 2,
+        bucket.height / 2,
+        0, 0, 2 * Math.PI
+      );
+      ctx.fill();
+    }
+
+    function updateParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.1;
+        p.alpha -= 0.02;
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+        } else {
+          ctx.fillStyle = `rgba(0, 204, 255, ${p.alpha})`;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    function createSplash(x, y) {
+      for (let i = 0; i < 10; i++) {
+        particles.push({
+          x: x,
+          y: y,
+          vx: (Math.random() - 0.5) * 3,
+          vy: -Math.random() * 3,
+          size: Math.random() * 3 + 1,
+          alpha: 1
+        });
+      }
+    }
+
+    function gameLoop() {
+      if (!gameRunning) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawBucket();
+
+      for (let i = waterDrops.length - 1; i >= 0; i--) {
+        const drop = waterDrops[i];
+        drop.y += drop.speed;
+
+        drawWaterDrop(drop);
+
+        if (
+          drop.y + drop.height >= bucket.y &&
+          drop.x + drop.width >= bucket.x &&
+          drop.x <= bucket.x + bucket.width
+        ) {
+          createSplash(drop.x + drop.width / 2, drop.y + drop.height);
+          dropSound.currentTime = 0;
+          dropSound.play();
+          waterDrops.splice(i, 1);
+          score++;
+          scoreboard.textContent = `分數: ${score}｜剩餘時間: ${timeLeft} 秒`;
+
+          if (score >= WIN_SCORE) {
+            endGame(true);
+            return;
+          }
+        } else if (drop.y > canvas.height) {
+          waterDrops.splice(i, 1);
+        }
+      }
+
+      updateParticles();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function endGame(win) {
+      gameRunning = false;
+      clearInterval(dropInterval);
+      clearInterval(timerInterval);
+      if (win) {
+        alert(`恭喜你！成功接住 ${score} 滴水滴，獲得勝利！`);
+        nextLevelButton.style.display = "block";
+      } else {
+        alert(`時間到！你只接住了 ${score} 滴水滴，遊戲失敗！`);
+      }
+      startButton.disabled = false;
+    }
+
+    startButton.addEventListener("click", startGame);
+  </script>
+</body>
+</html>

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <title>SDG6 水資源迷宮遊戲 - 節水提醒版</title>
+  <style>
+    body {
+      background-color: #a0d8ef;
+      margin: 0;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      margin: 10px;
+      color: #004466;
+    }
+    #info-bar {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    #timer { color: #cc0000; }
+    #drops { color: #0077cc; }
+
+    .maze {
+      display: grid;
+      grid-template-columns: repeat(15, 40px);
+      grid-template-rows: repeat(15, 40px);
+      gap: 2px;
+      margin-bottom: 20px;
+    }
+    .cell {
+      width: 40px;
+      height: 40px;
+      text-align: center;
+      line-height: 40px;
+      font-size: 20px;
+      background-color: white;
+      border: 1px solid #ccc;
+      position: relative;
+      overflow: hidden;
+    }
+    .wall { background-color: #333; }
+    .goal {
+      background-color: gold;
+      animation: blink 1s infinite;
+    }
+    @keyframes blink {
+      0%, 100% { background-color: gold; }
+      50% { background-color: orange; }
+    }
+
+    /* 強化水滴爆炸特效 */
+    .drop-sparkle::before,
+    .drop-sparkle::after {
+      position: absolute;
+      left: 6px;
+      top: 6px;
+      z-index: 5;
+      animation: sparkle 0.8s ease-out forwards;
+    }
+    .drop-sparkle::before {
+      content: "💧";
+      font-size: 28px;
+    }
+    .drop-sparkle::after {
+      content: "";
+      width: 40px;
+      height: 40px;
+      background: rgba(0, 174, 255, 0.4);
+      border-radius: 50%;
+      z-index: 1;
+      animation: splash 0.8s ease-out forwards;
+    }
+    @keyframes sparkle {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(2); opacity: 0.8; }
+      100% { transform: scale(3); opacity: 0; }
+    }
+    @keyframes splash {
+      0% { transform: scale(0.5); opacity: 0.8; }
+      100% { transform: scale(3.5); opacity: 0; }
+    }
+
+    /* 節水小提示 Toast */
+    #tip {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 123, 255, 0.85);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 20px;
+      font-size: 18px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+      z-index: 1000;
+      max-width: 90vw;
+      text-align: center;
+      box-shadow: 0 0 10px rgba(0,123,255,0.6);
+      user-select: none;
+    }
+    #tip.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    #musicToggle {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background-color: #3f51b5;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>💧 SDG6 水資源迷宮 - 收集水滴逃出迷宮！</h1>
+  <div id="info-bar">
+    <div id="timer">倒數：60 秒</div>
+    <div id="drops">💧：0 / 3</div>
+  </div>
+  <div id="tip"></div>
+  <div class="maze" id="maze"></div>
+
+  <!-- 背景音樂 -->
+  <audio id="backgroundMusic" src="music1.mp3" preload="auto" loop></audio>
+  <button id="musicToggle">🔊 音樂開</button>
+
+  <script>
+    const baseMazeLayout = [
+      "###############",
+      "#P     #      #",
+      "# # ### ### # #",
+      "# #   #     # #",
+      "# ### # ### # #",
+      "#   #   #   # #",
+      "### ### # ### #",
+      "#     # #   # #",
+      "# ### # ### # #",
+      "#   #   #   # #",
+      "### # ### # # #",
+      "#   #   # #   #",
+      "# ### ### ### #",
+      "#           G #",
+      "###############"
+    ];
+
+    const mazeEl = document.getElementById("maze");
+    const timerEl = document.getElementById("timer");
+    const dropsEl = document.getElementById("drops");
+    const tipEl = document.getElementById("tip");
+
+    let mazeLayout = [];
+    let playerPos = { x: 1, y: 1 };
+    let dropsCollected = 0;
+    let goalVisible = false;
+    const goalPos = { x: 13, y: 13 };
+    let timeLeft = 60;
+    let gameOver = false;
+    let tipTimeout = null;
+
+    const waterTips = [
+      "刷牙時關掉水龍頭，節省約 6 公升水！",
+      "洗菜用盆子接水，不浪費每滴水！",
+      "減少洗澡時間，節約大量用水！",
+      "修理水管漏水，避免浪費寶貴水資源！",
+      "用水後重複利用，讓水滴發揮最大價值！"
+    ];
+
+    // 音樂開關按鈕邏輯
+    const backgroundMusic = document.getElementById('backgroundMusic');
+    const musicToggleBtn = document.getElementById('musicToggle');
+
+    // 嘗試強制播放音樂
+    window.addEventListener("load", () => {
+      const playPromise = backgroundMusic.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          console.warn("瀏覽器可能阻止了自動播放:", error);
+        });
+      }
+    });
+
+    // 音樂開關按鈕邏輯
+    musicToggleBtn.addEventListener("click", () => {
+      if (backgroundMusic.paused) {
+        backgroundMusic.play();
+        musicToggleBtn.textContent = "🔊 音樂開";
+      } else {
+        backgroundMusic.pause();
+        musicToggleBtn.textContent = "🔇 音樂關";
+      }
+    });
+
+    function findEmptyCells(layout) {
+      const emptyCells = [];
+      for (let y = 0; y < layout.length; y++) {
+        for (let x = 0; x < layout[y].length; x++) {
+          const c = layout[y][x];
+          if (c === " " && !(x === playerPos.x && y === playerPos.y) && !(x === goalPos.x && y === goalPos.y)) {
+            emptyCells.push({x,y});
+          }
+        }
+      }
+      return emptyCells;
+    }
+
+    function placeRandomDrops(layout, count) {
+      let newLayout = layout.slice();
+      let emptyCells = findEmptyCells(layout);
+      for(let i = 0; i < count; i++) {
+        if(emptyCells.length === 0) break;
+        const idx = Math.floor(Math.random() * emptyCells.length);
+        const cell = emptyCells.splice(idx,1)[0];
+        const line = newLayout[cell.y];
+        newLayout[cell.y] = line.substring(0, cell.x) + "D" + line.substring(cell.x + 1);
+      }
+      return newLayout;
+    }
+
+    function renderMaze() {
+      mazeEl.innerHTML = "";
+      for (let y = 0; y < mazeLayout.length; y++) {
+        for (let x = 0; x < mazeLayout[y].length; x++) {
+          const cell = document.createElement("div");
+          cell.classList.add("cell");
+
+          const char = mazeLayout[y][x];
+          if (char === "#") {
+            cell.classList.add("wall");
+          } else if (x === playerPos.x && y === playerPos.y) {
+            cell.textContent = "🧍";
+          } else if (char === "D") {
+            cell.textContent = "💧";
+          } else if (goalVisible && x === goalPos.x && y === goalPos.y) {
+            cell.classList.add("goal");
+            cell.textContent = "🚪";
+          }
+
+          mazeEl.appendChild(cell);
+        }
+      }
+
+      dropsEl.textContent = `💧：${dropsCollected} / 3`;
+    }
+
+    function replaceAt(str, index, replacement) {
+      return str.substring(0, index) + replacement + str.substring(index + 1);
+    }
+
+    function showDropEffect(x, y) {
+      const index = y * mazeLayout[0].length + x;
+      const cell = mazeEl.children[index];
+      if (cell) {
+        cell.classList.add("drop-sparkle");
+        setTimeout(() => cell.classList.remove("drop-sparkle"), 800);
+      }
+    }
+
+    function showTip() {
+      const tip = waterTips[Math.floor(Math.random() * waterTips.length)];
+      tipEl.textContent = tip;
+      tipEl.classList.add("show");
+
+      if(tipTimeout) clearTimeout(tipTimeout);
+      tipTimeout = setTimeout(() => {
+        tipEl.classList.remove("show");
+      }, 3500);
+    }
+
+    function movePlayer(dx, dy) {
+      if (gameOver) return;
+
+      const newX = playerPos.x + dx;
+      const newY = playerPos.y + dy;
+      const target = mazeLayout[newY]?.[newX];
+
+      if (target !== "#" && target !== undefined) {
+        if (target === "D") {
+          dropsCollected++;
+          mazeLayout[newY] = replaceAt(mazeLayout[newY], newX, " ");
+          renderMaze();
+          showDropEffect(newX, newY);
+          showTip();
+
+          if (dropsCollected === 3) {
+            goalVisible = true;
+            renderMaze(); // 讓出口出現
+          }
+        }
+
+        playerPos = { x: newX, y: newY };
+        renderMaze();
+
+        if (goalVisible && newX === goalPos.x && newY === goalPos.y) {
+          clearInterval(timer);
+          gameOver = true;
+          setTimeout(() => {
+            alert("🎉 恭喜你成功逃出迷宮！");
+            alert("🌱 每滴水都得來不易，節約用水從你我做起！");
+          }, 100);
+        }
+      }
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (gameOver) return;
+      switch (e.key) {
+        case "ArrowUp": movePlayer(0, -1); break;
+        case "ArrowDown": movePlayer(0, 1); break;
+        case "ArrowLeft": movePlayer(-1, 0); break;
+        case "ArrowRight": movePlayer(1, 0); break;
+      }
+    });
+
+    // 初始化迷宮＋放置水滴
+    function initGame() {
+      dropsCollected = 0;
+      goalVisible = false;
+      gameOver = false;
+      playerPos = { x: 1, y: 1 };
+      timeLeft = 60;
+      timerEl.textContent = `倒數：${timeLeft} 秒`;
+      mazeLayout = placeRandomDrops(baseMazeLayout, 3);
+      renderMaze();
+    }
+
+    const timer = setInterval(() => {
+      if (gameOver) return;
+      timeLeft--;
+      timerEl.textContent = `倒數：${timeLeft} 秒`;
+      if (timeLeft <= 0) {
+        clearInterval(timer);
+        gameOver = true;
+        alert("⏰ 時間到！你沒能逃出迷宮！");
+        alert("💧 水資源有限，請養成節約用水的好習慣。");
+      }
+    }, 1000);
+
+    initGame();
+  </script>
+</body>
+</html>

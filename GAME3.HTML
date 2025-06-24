@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SDG 6 環境污染問答遊戲</title>
+<style>
+  body, html {
+    margin: 0; padding: 0; height: 100%;
+    font-family: "Noto Sans TC", sans-serif;
+    background: url('https://cdn.pixabay.com/photo/2022/04/07/14/31/bottle-7117637_1280.jpg') no-repeat center center fixed;
+    background-size: cover;
+    display: flex; justify-content: center; align-items: center;
+    color: white;
+    text-shadow: 1px 1px 3px #000;
+  }
+  .container {
+    background: rgba(0,0,0,0.7);
+    padding: 20px 30px;
+    border-radius: 10px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 0 15px #000;
+    text-align: center;
+  }
+  h2 {
+    margin-bottom: 20px;
+  }
+  .question {
+    font-size: 1.2em;
+    margin-bottom: 20px;
+  }
+  .option {
+    background: rgba(255,255,255,0.1);
+    border: 2px solid white;
+    border-radius: 8px;
+    padding: 12px 18px;
+    margin: 10px 0;
+    cursor: pointer;
+    transition: background 0.3s, color 0.3s;
+    user-select: none;
+  }
+  .option:hover {
+    background: rgba(255,255,255,0.3);
+  }
+  .option.correct {
+    background: #4CAF50;
+    border-color: #4CAF50;
+    color: white;
+  }
+  .option.wrong {
+    background: #F44336;
+    border-color: #F44336;
+    color: white;
+  }
+  @keyframes glow {
+    0%, 100% {
+      box-shadow: 0 0 8px 3px #4CAF50;
+    }
+    50% {
+      box-shadow: 0 0 20px 8px #81C784;
+    }
+  }
+  .option.correct.glow {
+    animation: glow 1.2s ease-in-out;
+  }
+  .result {
+    margin-top: 15px;
+    font-size: 1.2em;
+    font-weight: bold;
+    min-height: 1.5em;
+  }
+  .score {
+    margin-top: 10px;
+  }
+  .btn-restart,
+  .btn-next {
+    margin-top: 20px;
+    padding: 10px 20px;
+    font-size: 1em;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    color: white;
+  }
+  .btn-restart {
+    background-color: #2196F3;
+  }
+  .btn-restart:hover {
+    background-color: #1976D2;
+  }
+  .btn-next {
+    background-color: #ff9800;
+    display: none;
+    margin-left: 10px;
+  }
+  .btn-next:hover {
+    background-color: #e68900;
+  }
+  #musicToggle {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background-color: #3f51b5;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h2>SDG 6 環境污染問答遊戲</h2>
+    <div class="question" id="question">問題載入中...</div>
+    <div id="options"></div>
+    <div class="result" id="result"></div>
+    <div class="score" id="score"></div>
+    <button class="btn-restart" id="restartBtn" style="display:none;">重新開始</button>
+    <button class="btn-next" id="nextBtn" onclick="location.href='game4.html'">下一關</button>
+  </div>
+
+  <!-- 背景音樂 -->
+  <audio id="backgroundMusic" src="music1.mp3" preload="auto" loop></audio>
+  <button id="musicToggle">🔊 音樂開</button>
+
+<script>
+  const quizData = [
+    {
+      question: "下列哪一項行為最有助於減少水資源的污染？",
+      options: [
+        { text: "A. 隨意丟棄塑膠瓶和垃圾", correct: false },
+        { text: "B. 將有害化學物質直接倒入河川", correct: false },
+        { text: "C. 使用環保清潔劑並妥善處理垃圾", correct: true },
+        { text: "D. 不理會工廠排放廢水", correct: false },
+      ]
+    },
+    {
+      question: "塑膠垃圾如果未妥善處理，會造成什麼環境問題？",
+      options: [
+        { text: "A. 污染水源和海洋生物", correct: true },
+        { text: "B. 增加植物生長速度", correct: false },
+        { text: "C. 減少空氣中的二氧化碳", correct: false },
+        { text: "D. 改善土壤品質", correct: false },
+      ]
+    },
+    {
+      question: "哪一種行為有助於保護地下水資源？",
+      options: [
+        { text: "A. 隨意排放工業廢水", correct: false },
+        { text: "B. 節約用水和防止污染", correct: true },
+        { text: "C. 大量使用農藥和化肥", correct: false },
+        { text: "D. 將垃圾焚燒於河川中", correct: false },
+      ]
+    },
+    {
+      question: "關於水污染，下列敘述何者正確？",
+      options: [
+        { text: "A. 水污染只會影響人類健康", correct: false },
+        { text: "B. 水污染會破壞生態系統和平衡", correct: true },
+        { text: "C. 水污染不會影響農作物", correct: false },
+        { text: "D. 水污染是自然現象，無法避免", correct: false },
+      ]
+    },
+    {
+      question: "如何減少塑膠污染對水資源的影響？",
+      options: [
+        { text: "A. 多使用一次性塑膠製品", correct: false },
+        { text: "B. 推廣回收和減少塑膠使用", correct: true },
+        { text: "C. 將塑膠垃圾丟入河流", correct: false },
+        { text: "D. 任由塑膠垃圾在自然中分解", correct: false },
+      ]
+    },
+  ];
+
+  let currentQuestionIndex = 0;
+  let score = 0;
+  const questionEl = document.getElementById('question');
+  const optionsEl = document.getElementById('options');
+  const resultEl = document.getElementById('result');
+  const scoreEl = document.getElementById('score');
+  const restartBtn = document.getElementById('restartBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const backgroundMusic = document.getElementById('backgroundMusic');
+  const musicToggleBtn = document.getElementById('musicToggle');
+
+  // 嘗試強制播放音樂
+  window.addEventListener("load", () => {
+    const playPromise = backgroundMusic.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((error) => {
+        console.warn("瀏覽器可能阻止了自動播放:", error);
+      });
+    }
+  });
+
+  // 音樂開關按鈕邏輯
+  musicToggleBtn.addEventListener("click", () => {
+    if (backgroundMusic.paused) {
+      backgroundMusic.play();
+      musicToggleBtn.textContent = "🔊 音樂開";
+    } else {
+      backgroundMusic.pause();
+      musicToggleBtn.textContent = "🔇 音樂關";
+    }
+  });
+
+  function loadQuestion() {
+    resultEl.textContent = '';
+    const currentQ = quizData[currentQuestionIndex];
+    questionEl.textContent = currentQ.question;
+    optionsEl.innerHTML = '';
+
+    currentQ.options.forEach((opt) => {
+      const optionDiv = document.createElement('div');
+      optionDiv.classList.add('option');
+      optionDiv.textContent = opt.text;
+      optionDiv.dataset.correct = opt.correct;
+      optionDiv.addEventListener('click', selectOption);
+      optionsEl.appendChild(optionDiv);
+    });
+
+    scoreEl.textContent = `答對題數：${score} / ${quizData.length}`;
+  }
+
+  function selectOption(e) {
+    const selected = e.target;
+    const correct = selected.dataset.correct === 'true';
+
+    if (correct) {
+      selected.classList.add('correct', 'glow');
+      resultEl.textContent = '答對了！';
+      score++;
+      selected.addEventListener('animationend', () => {
+        selected.classList.remove('glow');
+      }, { once: true });
+    } else {
+      selected.classList.add('wrong');
+      resultEl.textContent = '答錯了！';
+    }
+
+    Array.from(optionsEl.children).forEach(option => {
+      option.removeEventListener('click', selectOption);
+      if (option.dataset.correct === 'true') {
+        option.classList.add('correct');
+      }
+      option.style.pointerEvents = 'none';
+    });
+
+    scoreEl.textContent = `答對題數：${score} / ${quizData.length}`;
+
+    setTimeout(() => {
+      currentQuestionIndex++;
+      if (currentQuestionIndex < quizData.length) {
+        loadQuestion();
+      } else {
+        showFinalResult();
+      }
+    }, 1500);
+  }
+
+  function showFinalResult() {
+    questionEl.textContent = "遊戲結束！";
+    optionsEl.innerHTML = '';
+    if (score >= 3) {
+      resultEl.textContent = `恭喜你！答對了 ${score} 題，獲得勝利！🎉`;
+      nextBtn.style.display = 'inline-block';
+    } else {
+      resultEl.textContent = `你答對了 ${score} 題，再接再厲！`;
+    }
+    scoreEl.textContent = '';
+    restartBtn.style.display = 'inline-block';
+  }
+
+  restartBtn.addEventListener('click', () => {
+    currentQuestionIndex = 0;
+    score = 0;
+    restartBtn.style.display = 'none';
+    nextBtn.style.display = 'none';
+    loadQuestion();
+  });
+
+  loadQuestion();
+</script>
+</body>
+</html>

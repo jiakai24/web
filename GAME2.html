@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <title>第二關 點擊瓶子作答</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      background-color: #e0f7fa;
+      background-image: url("images/bg03.jpeg");
+      background-size: cover;
+      background-position: center;
+      text-align: center;
+      color: #fff;
+    }
+
+    h1 {
+      margin-top: 30px;
+      color: #ffffff;
+      text-shadow: 1px 1px 4px #000;
+    }
+
+    .bottle-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      padding: 40px;
+    }
+
+    .bottle {
+      width: 80px;
+      height: 120px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .bottle:hover {
+      transform: scale(1.1);
+    }
+
+    #result {
+      font-size: 24px;
+      margin-top: 20px;
+      color: #fff;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px #000;
+    }
+
+    #restartButton,
+    #nextButton,
+    #musicToggle {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 18px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      color: white;
+    }
+
+    #restartButton, #nextButton {
+      display: none;
+      background-color: #00796b;
+    }
+
+    #nextButton {
+      background-color: #ff9800;
+      margin-left: 10px;
+    }
+
+    #musicToggle {
+      background-color: #3f51b5;
+      position: fixed;
+      top: 20px;
+      right: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>💧 第二關 水資源問答</h1>
+  <p>點擊每個瓶子進行作答，共 7 題，答對 4 題以上即過關</p>
+  <div class="bottle-container" id="bottleContainer"></div>
+  <div id="result"></div>
+  <button id="restartButton" onclick="startGame()">重新開始</button>
+  <button id="nextButton" onclick="location.href='GAME3.html'">下一關</button>
+  <button id="musicToggle">🔊 音樂開</button>
+
+  <!-- 背景音樂 -->
+  <audio id="backgroundMusic" src="music1.mp3" preload="auto" loop autoplay></audio>
+
+  <script>
+    const questions = [
+      {
+        question: "下列哪一項是節約用水的方法？",
+        options: [
+          { text: "每次洗手都不關水龍頭", correct: false },
+          { text: "洗澡時減少用水時間", correct: true },
+          { text: "將洗菜水直接倒掉", correct: false }
+        ]
+      },
+      {
+        question: "地球上約有多少水是可供人類直接使用的淡水？",
+        options: [
+          { text: "97%", correct: false },
+          { text: "10%", correct: false },
+          { text: "少於 1%", correct: true }
+        ]
+      },
+      {
+        question: "哪一種水資源回收方式可以重複使用水？",
+        options: [
+          { text: "將雨水收集用來澆花", correct: true },
+          { text: "將洗衣水直接排入河川", correct: false },
+          { text: "用瓶裝水洗衣服", correct: false }
+        ]
+      },
+      {
+        question: "在缺水地區，哪種做法可以改善飲用水問題？",
+        options: [
+          { text: "把海水煮沸喝掉", correct: false },
+          { text: "使用太陽能淨水器", correct: true },
+          { text: "挖更深的井", correct: false }
+        ]
+      },
+      {
+        question: "水資源汙染的主要原因之一是？",
+        options: [
+          { text: "植樹造林", correct: false },
+          { text: "工業廢水排入河川", correct: true },
+          { text: "飲用礦泉水", correct: false }
+        ]
+      },
+      {
+        question: "SDG 6 的核心目標是什麼？",
+        options: [
+          { text: "提高水價賺錢", correct: false },
+          { text: "確保所有人都能獲得乾淨的水與衛生設施", correct: true },
+          { text: "建造更多游泳池", correct: false }
+        ]
+      },
+      {
+        question: "為什麼我們要愛惜水資源？",
+        options: [
+          { text: "因為水可以免費取得", correct: false },
+          { text: "因為地球水資源是無限的", correct: false },
+          { text: "因為水是生活與健康不可或缺的資源", correct: true }
+        ]
+      }
+    ];
+
+    let answered = [];
+    let score = 0;
+    const hoverSound = new Audio("https://www.soundjay.com/buttons/sounds/button-16.mp3");
+    const backgroundMusic = document.getElementById("backgroundMusic");
+    const musicToggleBtn = document.getElementById("musicToggle");
+
+    // 嘗試強制播放音樂（可能被瀏覽器阻擋）
+    window.addEventListener("load", () => {
+      const playPromise = backgroundMusic.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          console.warn("瀏覽器可能阻止了自動播放:", error);
+        });
+      }
+    });
+
+    // 音樂開關按鈕邏輯
+    musicToggleBtn.addEventListener("click", () => {
+      if (backgroundMusic.paused) {
+        backgroundMusic.play();
+        musicToggleBtn.textContent = "🔊 音樂開";
+      } else {
+        backgroundMusic.pause();
+        musicToggleBtn.textContent = "🔇 音樂關";
+      }
+    });
+
+    function startGame() {
+      const container = document.getElementById("bottleContainer");
+      container.innerHTML = "";
+      answered = [];
+      score = 0;
+      document.getElementById("result").textContent = "";
+      document.getElementById("restartButton").style.display = "none";
+      document.getElementById("nextButton").style.display = "none";
+
+      for (let i = 0; i < 7; i++) {
+        const img = document.createElement("img");
+        img.src = "https://bing.com/th/id/BCO.b395f458-242d-4fc4-a524-c7bf45073c8f.png";
+        img.className = "bottle";
+        img.onclick = () => askQuestion(i, img);
+        img.addEventListener("mouseenter", () => {
+          hoverSound.currentTime = 0;
+          hoverSound.play();
+        });
+        container.appendChild(img);
+      }
+    }
+
+    function askQuestion(index, imgEl) {
+      if (answered.includes(index)) return;
+
+      const q = questions[index];
+      let optionsText = q.options.map((opt, i) => `${String.fromCharCode(65 + i)}. ${opt.text}`).join("\n");
+      let answer = prompt(`題目 ${index + 1}：\n${q.question}\n\n${optionsText}\n\n請輸入 A/B/C`);
+
+      if (!answer) return;
+
+      const userChoice = answer.trim().toUpperCase();
+      const optIndex = { A: 0, B: 1, C: 2 }[userChoice];
+
+      if (optIndex === undefined) {
+        alert("請輸入 A、B 或 C");
+        return;
+      }
+
+      const selected = q.options[optIndex];
+      if (selected.correct) {
+        alert("✅ 答對了！");
+        score++;
+        imgEl.style.opacity = 0.4;
+      } else {
+        alert("❌ 答錯了！");
+        imgEl.style.opacity = 0.2;
+      }
+
+      imgEl.style.pointerEvents = "none";
+      answered.push(index);
+
+      if (answered.length === 7) {
+        showResult();
+      }
+    }
+
+    function showResult() {
+      const resultEl = document.getElementById("result");
+      if (score >= 4) {
+        resultEl.textContent = `🎉 你答對了 ${score} 題，過關了！`;
+        document.getElementById("nextButton").style.display = "inline-block";
+      } else {
+        resultEl.textContent = `😢 你只答對了 ${score} 題，請再接再厲！`;
+      }
+      document.getElementById("restartButton").style.display = "inline-block";
+    }
+
+    // 初次載入執行一次
+    startGame();
+  </script>
+</body>
+</html>

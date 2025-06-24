@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>SDG6 拼圖挑戰 (4x4)</title>
+  <style>
+    body {
+      background-color: #e0f7fa;
+      text-align: center;
+      font-family: Arial;
+    }
+    h1 {
+      color: #00796b;
+    }
+    #puzzle {
+      width: 400px;
+      height: 400px;
+      margin: auto;
+      display: flex;
+      flex-wrap: wrap;
+      border: 4px solid #00796b;
+    }
+    .tile {
+      width: 100px;
+      height: 100px;
+      box-sizing: border-box;
+      border: 1px solid #004d40;
+      background-size: 400px 400px;
+      cursor: pointer;
+    }
+    #timer {
+      font-size: 20px;
+      color: #d32f2f;
+      margin: 10px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #00796b;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    #nextButton {
+      display: none;
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #ff9800;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    #musicToggle {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background-color: #3f51b5;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<h1>SDG6 拼圖挑戰 - 4x4</h1>
+<p>你有 <strong>60 秒</strong> 完成拼圖，點擊兩塊交換位置！</p>
+<div id="timer">剩餘時間：60 秒</div>
+<div id="puzzle"></div>
+<button onclick="restartGame()">重新開始</button>
+<button id="nextButton" onclick="location.href='game5.html'">下一關</button>
+
+<!-- 背景音樂 -->
+<audio id="backgroundMusic" src="music1.mp3" preload="auto" loop></audio>
+<button id="musicToggle">🔊 音樂開</button>
+
+<script>
+  const puzzle = document.getElementById("puzzle");
+  const timerEl = document.getElementById("timer");
+  const imgUrl = "images/bg.jpg"; // 可換 SDG6 圖
+
+  const SIZE = 4; // 4x4 拼圖
+  let tiles = [];
+  let firstTile = null;
+  let timer;
+  let timeLeft = 60;
+
+  const backgroundMusic = document.getElementById('backgroundMusic');
+  const musicToggleBtn = document.getElementById('musicToggle');
+
+  // 嘗試強制播放音樂
+  window.addEventListener("load", () => {
+    const playPromise = backgroundMusic.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((error) => {
+        console.warn("瀏覽器可能阻止了自動播放:", error);
+      });
+    }
+  });
+
+  // 音樂開關按鈕邏輯
+  musicToggleBtn.addEventListener("click", () => {
+    if (backgroundMusic.paused) {
+      backgroundMusic.play();
+      musicToggleBtn.textContent = "🔊 音樂開";
+    } else {
+      backgroundMusic.pause();
+      musicToggleBtn.textContent = "🔇 音樂關";
+    }
+  });
+
+  function createPuzzle() {
+    clearInterval(timer);
+    timeLeft = 60;
+    updateTimer();
+    puzzle.innerHTML = "";
+    tiles = [];
+
+    for (let i = 0; i < SIZE * SIZE; i++) {
+      const tile = document.createElement("div");
+      tile.className = "tile";
+      tile.style.backgroundImage = `url(${imgUrl})`;
+      const x = (i % SIZE) * -100;
+      const y = Math.floor(i / SIZE) * -100;
+      tile.style.backgroundPosition = `${x}px ${y}px`;
+      tile.dataset.index = i;
+      tile.addEventListener("click", () => swapTile(tile));
+      tiles.push(tile);
+      puzzle.appendChild(tile);
+    }
+
+    setTimeout(() => {
+      shuffleTiles();
+      startTimer();
+    }, 200); // 防止畫面未初始化完成前就開始洗牌
+  }
+
+  function shuffleTiles() {
+    for (let i = tiles.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [tiles[i].style.backgroundPosition, tiles[j].style.backgroundPosition] =
+        [tiles[j].style.backgroundPosition, tiles[i].style.backgroundPosition];
+    }
+  }
+
+  function swapTile(tile) {
+    if (!firstTile) {
+      firstTile = tile;
+      tile.style.border = "3px solid red";
+    } else {
+      const temp = tile.style.backgroundPosition;
+      tile.style.backgroundPosition = firstTile.style.backgroundPosition;
+      firstTile.style.backgroundPosition = temp;
+      firstTile.style.border = "1px solid #004d40";
+      firstTile = null;
+      checkWin();
+    }
+  }
+
+  function checkWin() {
+    let win = true;
+    for (let i = 0; i < tiles.length; i++) {
+      const correctPos = `${(i % SIZE) * -100}px ${Math.floor(i / SIZE) * -100}px`;
+      if (tiles[i].style.backgroundPosition !== correctPos) {
+        win = false;
+        break;
+      }
+    }
+    if (win) {
+      clearInterval(timer);
+      setTimeout(() => {
+        alert("🎉 恭喜完成拼圖！你成功守護水資源！");
+        document.getElementById("nextButton").style.display = "inline-block"; // 顯示「下一關」按鈕
+      }, 100);
+    }
+  }
+
+  function startTimer() {
+    timer = setInterval(() => {
+      timeLeft--;
+      updateTimer();
+      if (timeLeft <= 0) {
+        clearInterval(timer);
+        alert("⏰ 時間到了！請再試一次。");
+      }
+    }, 1000);
+  }
+
+  function updateTimer() {
+    timerEl.textContent = `剩餘時間：${timeLeft} 秒`;
+  }
+
+  function restartGame() {
+    createPuzzle();
+  }
+
+  createPuzzle();
+</script>
+
+</body>
+</html>
